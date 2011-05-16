@@ -14,20 +14,20 @@ Gem::Specification.new do |s|
   ## the sub! line in the Rakefile
   s.name              = 'acts_as_versioned'
   s.version           = '0.6.0'
-  s.date              = '2010-07-19'
+  s.date              = '2011-05-16'
   s.rubyforge_project = 'acts_as_versioned'
 
   ## Make sure your summary is short. The description may be as long
   ## as you like.
-  s.summary     = "Add simple versioning to ActiveRecord models."
-  s.description = "Add simple versioning to ActiveRecord models."
+  s.summary     = "Add simple versioning to ActiveRecord models with the ability to search for records at a specific time even if they were deleted."
+  s.description = "Add simple versioning to ActiveRecord models with the ability to search for records at a specific time even if they were deleted."
 
   ## List the primary authors. If there are a bunch of authors, it's probably
   ## better to set the email to an email list or something. If you don't have
   ## a custom homepage, consider using your GitHub URL or the like.
-  s.authors  = ["Rick Olson"]
-  s.email    = 'technoweenie@gmail.com'
-  s.homepage = 'http://github.com/technoweenie/acts_as_versioned'
+  s.authors  = ["Rick Olson", "Philip Kurmann"]
+  s.email    = 'philip@kman.ch'
+  s.homepage = 'http://github.com/kman-ch/acts_as_versioned'
 
   ## This gets added to the $LOAD_PATH so that 'lib/NAME.rb' can be required as
   ## require 'NAME.rb' or'/lib/NAME/file.rb' can be as require 'NAME/file.rb'

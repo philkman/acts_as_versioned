@@ -179,8 +179,7 @@ module ActiveRecord #:nodoc:
         self.non_versioned_columns        = [self.primary_key, inheritance_column, self.version_column, 'lock_version', versioned_inheritance_column] + options[:non_versioned_columns].to_a.map(&:to_s)
         self.version_association_options  = {
                                                     :class_name  => "#{self.to_s}::#{versioned_class_name}",
-                                                    :foreign_key => versioned_foreign_key,
-                                                    :dependent   => :delete_all
+                                                    :foreign_key => versioned_foreign_key
         }.merge(options[:association_options] || {})
 
         if block_given?
@@ -206,6 +205,8 @@ module ActiveRecord #:nodoc:
         # Create the dynamic versioned model
         #
         const_set(versioned_class_name, Class.new(ActiveRecord::Base)).class_eval do
+          scope :at, lambda {|date| where("valid_from <= ? and (valid_until > ? or valid_until is NULL )", date, date) }
+
           def self.reloadable?;
             false;
           end
@@ -242,6 +243,11 @@ module ActiveRecord #:nodoc:
             self.class.after(self)
           end
 
+          # Find version at a specific time
+          def self.at_time(date)
+            find :first, :conditions => ["valid_from <= ? and (valid_until > ? or valid_until is NULL )", date, date]
+          end  
+
           def versions_count
             page.version
           end
@@ -266,6 +272,7 @@ module ActiveRecord #:nodoc:
           before_save :set_new_version
           after_save :save_version
           after_save :clear_old_versions
+          before_destroy :update_valid_until_field
         end
 
         module InstanceMethods
@@ -273,12 +280,22 @@ module ActiveRecord #:nodoc:
           def save_version
             if @saving_version
               @saving_version = nil
+              now = Time.now
+              prev_rev = self.versions.latest
+              prev_rev.update_attribute(:valid_until, now) if prev_rev
               rev = self.class.versioned_class.new
               clone_versioned_model(self, rev)
               rev.send("#{self.class.version_column}=", send(self.class.version_column))
               rev.send("#{self.class.versioned_foreign_key}=", id)
+              rev.valid_from = now
               rev.save
             end
+          end
+
+          # Set the valid until field when a class will be destroyed
+          def update_valid_until_field
+            rev = self.versions.latest
+            rev.update_attribute(:valid_until, Time.now) if rev
           end
 
           # Clears old revisions if a limit is set with the :limit option in <tt>acts_as_versioned</tt>.
@@ -409,6 +426,11 @@ module ActiveRecord #:nodoc:
             const_get versioned_class_name
           end
 
+          # Find all versions at a specific time
+          def versions_at(date)
+            self.versioned_class.at(date)
+          end
+
           # Rake migration task to create the versioned table using options passed to acts_as_versioned
           def create_versioned_table(create_table_options = {})
             # create version column in main table if it does not exist
@@ -422,6 +444,8 @@ module ActiveRecord #:nodoc:
             self.connection.create_table(versioned_table_name, create_table_options) do |t|
               t.column versioned_foreign_key, :integer
               t.column version_column, :integer
+              t.column "valid_from", :datetime
+              t.column "valid_until", :datetime
             end
 
             self.versioned_columns.each do |col|
@@ -441,6 +465,9 @@ module ActiveRecord #:nodoc:
             end
 
             self.connection.add_index versioned_table_name, versioned_foreign_key
+            self.connection.add_index versioned_table_name, versioned_foreign_key
+            self.connection.add_index versioned_table_name, "valid_from"
+            self.connection.add_index versioned_table_name, "valid_until"
           end
 
           # Rake migration task to drop the versioned table
